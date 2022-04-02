@@ -1,0 +1,826 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+namespace OOP_laba_8
+{
+    public partial class Form1 : Form
+    {
+		Repository rep = new Repository();
+		Graphics g;
+		public Form1()
+        {
+            InitializeComponent();
+			this.Controls.Add(pictureBox1);
+			pictureBox1.KeyPress += new KeyPressEventHandler(PressEventHandler);
+			g = pictureBox1.CreateGraphics();
+		
+		}
+
+		private void PressEventHandler(Object sender, KeyPressEventArgs e)
+		{
+			
+			if (rep.getSize() != 0)
+			{
+				if (e.KeyChar == 119) rep.peek_cur().Move(0, -1);
+				if (e.KeyChar == 115) rep.peek_cur().Move(0, 1);
+				if (e.KeyChar == 97) rep.peek_cur().Move(-1, 0);
+				if (e.KeyChar == 100) rep.peek_cur().Move(1, 0);
+				if (e.KeyChar == 107) btnColor_Click(sender, e);
+				if (e.KeyChar == 98) rep.peek_cur().Grow(1);
+				if (e.KeyChar == 118) rep.peek_cur().Grow(-1);
+				
+				if (e.KeyChar == 110)
+				{
+					if (rep.peek_cur() is Polygon) ((Polygon)rep.peek_cur()).GrowN(2);
+					if (rep.peek_cur() is Star) ((Star)rep.peek_cur()).GrowN(2);
+				}
+				if (e.KeyChar == 109)
+				{
+					if (rep.peek_cur() is Polygon)((Polygon)rep.peek_cur()).GrowN(-2);
+					if (rep.peek_cur() is Star) ((Star)rep.peek_cur()).GrowN(-2);
+				}
+				if (e.KeyChar == 46)
+				{
+					rep.peek_cur().Rotate(2);
+				}
+				if (e.KeyChar == 44)
+				{
+					rep.peek_cur().Rotate(-2);
+				}
+				if (e.KeyChar == 122) rep.go_prev();
+				if (e.KeyChar == 120) rep.go_next();
+				if (e.KeyChar == 99) rep.pop_cur();
+				
+
+				
+				rep.print2(g);
+			}
+		}
+
+		private void pictureBox1_MouseClick(object sender, MouseEventArgs e)
+        {
+			
+			Shape c = null;
+			if (rBtnCircle.Checked)
+				c = new Circle(e.X, e.Y, 30, colorDialog1.Color, pictureBox1.Width, pictureBox1.Height);
+			if (rBtnPolygon.Checked)
+				c = new Polygon(e.X, e.Y, 30, colorDialog1.Color, pictureBox1.Width, pictureBox1.Height, 4);
+			if (rBtnStar.Checked)
+				c = new Star(e.X, e.Y, 30, colorDialog1.Color, pictureBox1.Width, pictureBox1.Height, 5);
+
+			if (e.Button.ToString() == "Left")
+			{
+				if (rep.find(c) == -1)
+					rep.push_next(c);
+				else
+				{
+					colorDialog1.Color = rep.peek_cur().GetColor();
+					btnColor.BackColor = rep.peek_cur().GetColor();
+				}
+
+			}
+			else
+			{
+				if (!rep.pick(c))
+					rep.delete_pick();
+			}
+			rep.print2(g);
+
+		}
+
+        
+
+        private void pictureBox1_MouseMove(object sender, MouseEventArgs e)
+        {
+			pictureBox1.Focus();
+        }
+
+        private void btnColor_Click(object sender, EventArgs e)
+        {
+
+			if (colorDialog1.ShowDialog() == DialogResult.OK)
+			{
+				btnColor.BackColor = colorDialog1.Color;
+				if (rep.getSize() > 0)
+				{
+					rep.peek_cur().SetColor(colorDialog1.Color);
+					rep.print2(g);
+				}
+			}
+		}
+
+        private void btnClear_Click(object sender, EventArgs e)
+        {
+			
+			while (rep.getSize() != 0) rep.delete_pick();
+			rep.print2(g);
+        }
+    }
+}
+
+public abstract class Shape
+{
+    protected Rectangle rec;
+	protected int x, y, width, height;
+    abstract public void SetColor(Color col);
+    abstract public void Draw(Graphics g);
+	abstract public void Move(int xx, int yy);
+	abstract public void Resize();
+	abstract public void DrawRec(Graphics g);
+	abstract public void Grow(int i);
+	abstract public bool Find(Shape s);
+	abstract public int GetX();
+	abstract public int GetY();
+	abstract public Color GetColor();
+	abstract public void Rotate(int gr);
+	abstract public void GrowN(int nn);
+}
+public class Circle: Shape
+{
+    protected int rad;
+    protected Color color;
+    public Circle()
+    {
+        x = 0;
+        y = 0;
+        rad = 0;
+    }
+    public Circle(int x, int y, int r, Color c, int Width, int Height)
+    {
+		width = Width;
+		height = Height;
+		this.x = x;
+        this.y = y;
+        color = c;
+		//контроль выхода за границы при инициализации
+		if (r > x) r = x;
+		if (x + r > width) r = width - x;
+		if (r > y) r = y;
+		if (y + r > height) r = height - y;
+		rad = r;
+        rec = new Rectangle(x - rad, y - rad, 2 * rad, 2 * rad);
+    }
+    public override void Draw(Graphics g)
+    {
+        g.DrawEllipse(new Pen(Color.Black, 2), rec);
+        g.FillEllipse(new SolidBrush(color), rec);
+    }
+    public override void SetColor(Color c)
+    {
+        color = c;
+    }
+	public override void Move(int xx, int yy)
+	{
+		if (x + xx > rad && x + xx + rad < width) x += xx;
+		if (y + yy > rad && y + yy + rad < height) y += yy;
+		Resize();
+	}
+    public override void Resize()
+    {
+		rec = new Rectangle(x - rad, y - rad, rad * 2, rad * 2);
+    }
+    public override void DrawRec(Graphics g)
+    {
+		g.DrawRectangle(new Pen(Color.Black, 2), rec);
+    }
+	public override void Grow(int i)
+    {
+		if (rad + i < x && x + rad + i < width && rad + i < y && y + rad + i < height && rad + i > 0) rad += i;
+		Resize();
+    }
+	public override bool Find(Shape s)
+	{
+		if (Math.Pow(x - s.GetX(), 2) + Math.Pow(y - s.GetY(), 2) <= rad * rad) return true; else return false;
+	}
+    public override int GetX()
+    {
+		return x;
+    }
+    public override int GetY()
+    {
+		return y;
+    }
+	public override Color GetColor()
+    {
+		return color;
+    }
+	public override void Rotate(int gr)
+    {
+		
+    }
+	public override void GrowN(int nn)
+    {
+
+    }
+}
+public class Polygon : Circle
+{
+	private int n, gr;
+	List<PointF> lst;
+	
+	public Polygon() : base()
+    {
+
+    }
+	public Polygon(int x, int y, int r, Color c, int Width, int Height, int n):base(x, y, r, c, Width, Height)
+    {
+		if (n > 3 && n % 2 == 0)
+			this.n = n;
+		else this.n = 4;
+		//контроль выхода за границы при инициализации
+		if (r > x) r = x;
+		if (x + r > width) r = width - x;
+		if (r > y) r = y;
+		if (y + r > height) r = height - y;
+		Resize();
+	}
+	public override void Draw(Graphics g)
+	{
+		g.DrawPolygon(new Pen(Color.Black, 2), lst.ToArray());
+		g.FillPolygon(new SolidBrush(color), lst.ToArray());
+	}
+	public override void SetColor(Color c)
+	{
+		color = c;
+	}
+	
+	public override void Move(int xx, int yy)
+	{
+		if (x + xx > rad && x + xx + rad < width) x += xx;
+		if (y + yy > rad && y + yy + rad < height) y += yy;
+		Resize();
+	}
+	public override void Resize()
+	{
+		lst = null;
+		lst = new List<PointF>();
+		for (int i = gr; i < gr + 360; i += 360 / n)
+		{
+			double radiani = (double)(i * 3.14) / 180;
+			float xx = x + (int)(rad * Math.Cos(radiani));
+			float yy = y + (int)(rad * Math.Sin(radiani));
+			lst.Add(new PointF(xx, yy));
+		}
+		rec = new Rectangle(x - rad, y - rad, 2 * rad, 2 * rad);
+	}
+	public override void DrawRec(Graphics g)
+	{
+		g.DrawRectangle(new Pen(Color.Black, 2), rec);
+	}
+	public override void Grow(int i)
+	{
+		if (rad + i < x && x + rad + i < width && rad + i < y && y + rad + i < height && rad + i > 0) rad += i;
+		Resize();
+	}
+	public override bool Find(Shape s)
+	{
+		if (Math.Pow(x - s.GetX(), 2) + Math.Pow(y - s.GetY(), 2) <= rad * rad) return true; else return false;
+	}
+	public override int GetX()
+	{
+		return x;
+	}
+	public override int GetY()
+	{
+		return y;
+	}
+	public override Color GetColor()
+	{
+		return color;
+	}
+	public override void Rotate(int gr)
+	{
+		this.gr += gr;
+		Resize();
+	}
+	public override void GrowN(int nn)
+	{
+		if (nn + n > 3 && (nn+n)%2 ==0) n += nn;
+		Resize();
+	}
+}
+
+public class Star : Circle
+{
+	private int n, gr;
+	List<PointF> lst;
+
+	public Star() : base()
+	{
+
+	}
+	public Star(int x, int y, int r, Color c, int Width, int Height, int n) : base(x, y, r, c, Width, Height)
+	{
+		if (n > 4 && n % 2 == 1)
+			this.n = n;
+		else this.n = 5;
+		//контроль выхода за границы при инициализации
+		if (r > x) r = x;
+		if (x + r > width) r = width - x;
+		if (r > y) r = y;
+		if (y + r > height) r = height - y;
+		Resize();
+	}
+	public override void Draw(Graphics g)
+	{
+		g.DrawPolygon(new Pen(Color.Black, 2), lst.ToArray());
+		g.FillPolygon(new SolidBrush(color), lst.ToArray());
+	}
+	public override void SetColor(Color c)
+	{
+		color = c;
+	}
+
+	public override void Move(int xx, int yy)
+	{
+		if (x + xx > rad && x + xx + rad < width) x += xx;
+		if (y + yy > rad && y + yy + rad < height) y += yy;
+		Resize();
+	}
+	public override void Resize()
+	{
+		lst = null;
+		lst = new List<PointF>();
+		double a = gr * Math.PI / 180, da = Math.PI / n, l;
+		for (int k = 0; k < 2 * n + 1; k++)
+		{
+			l = k % 2 == 0 ? rad : rad / 2;
+			lst.Add(new PointF((float)(x + l * Math.Cos(a)), (float)(y + l * Math.Sin(a))));
+			a += da;
+		}
+		rec = new Rectangle(x - rad, y - rad, 2 * rad, 2 * rad);
+	}
+	public override void DrawRec(Graphics g)
+	{
+		g.DrawRectangle(new Pen(Color.Black, 2), rec);
+	}
+	public override void Grow(int i)
+	{
+		if (rad + i < x && x + rad + i < width && rad + i < y && y + rad + i < height && rad + i > 0) rad += i;
+		Resize();
+	}
+	public override bool Find(Shape s)
+	{
+		if (Math.Pow(x - s.GetX(), 2) + Math.Pow(y - s.GetY(), 2) <= rad * rad) return true; else return false;
+	}
+	public override int GetX()
+	{
+		return x;
+	}
+	public override int GetY()
+	{
+		return y;
+	}
+	public override Color GetColor()
+	{
+		return color;
+	}
+	public override void Rotate(int gr)
+	{
+		this.gr += gr;
+		Resize();
+	}
+	public override void GrowN(int nn)
+	{
+		if (nn + n > 4 && (nn + n) % 2 == 1) n += nn;
+		Resize();
+	}
+}
+public unsafe class Node
+{
+    private Node prev, next;
+    protected unsafe Shape c;
+    bool pick = false;
+    public Node()//конструктор по умолчанию
+    {
+
+	    prev = null;
+	    next = null;
+
+    }
+
+    public Node go_next()//возвращает указатель на следующий элемент
+    {
+    return next;
+    }
+
+    public Node go_prev()//возвращает указатель на предыдущий элемент
+    {
+    return prev;
+    }
+
+    public void set_next(Node next)//устнавливает указатель на следующий  элемент
+    {
+    this.next = next;
+    }
+
+    public void set_prev(Node prev)//устанавливает указатель на предыдуший элемент
+    {
+    this.prev = prev;
+    }
+
+    public Shape get_c()//возвращает объект
+    {
+    return c;
+    }
+
+    public void set_c(Shape c)//устанавливает объект
+    {
+    this.c = c;
+    }
+
+    public void change_pick()
+    {
+    if (pick)
+        pick = false;
+    else
+        pick = true;
+    }
+
+    public bool get_pick()
+    {
+    return pick;
+    }
+}
+public class Repository
+{
+    protected Node cur, front, back;
+    protected int size;
+    public int getSize()
+    {
+        return size;
+    }
+    public Repository()
+    {
+        size = 0;
+        cur = null;
+        front = null;
+        back = null;
+    }
+    public Node begin()
+    {
+        return front;
+    }
+    public Node end()
+    {
+        return back;
+    }
+    public void pop_cur()
+    {
+        Node tmp = cur;
+        if (size > 1)
+        {
+            if (cur == front)
+            {
+                front = cur.go_next();
+
+                cur = cur.go_next();
+                cur.set_prev(null);
+
+            }
+            else
+                if (cur == back)
+            {
+                back = cur.go_prev();
+                back.set_next(null);
+                cur = cur.go_prev();
+
+            }
+            else
+            {
+                Node next = cur.go_next();
+                Node prev = cur.go_prev();
+                cur = cur.go_prev();
+                next.set_prev(prev);
+                prev.set_next(next);
+            }
+        }
+        else
+        {
+            cur = null;
+            front = null;
+            back = null;
+        }
+        
+        size--;
+    }
+	public Shape peek_cur()
+    {
+		Node tmp = cur;
+		return tmp.get_c();
+	}
+	public void push_back(Shape c)//добавляет элемент в начало
+	{
+		Node nd = new Node();
+		nd.set_c(c);
+		nd.set_next(null);
+		nd.set_prev(back);
+		if (back != null)
+		{
+			back.set_next(nd);
+		}
+		if (size == 0)
+		{
+			front = nd;
+			back = nd;
+			cur = front;
+
+		}
+		else
+		{
+
+			back = nd;
+		}
+		size++;
+	}
+
+	public void pop_back()//удаляет элемент из начала
+	{
+		Node tmp = back;
+		size--;
+		back = back.go_prev();
+		//delete tmp;
+		tmp = null;
+	}
+
+	public void push_prev(Shape c)//довляет элемент предыдущим
+	{
+		Node tmp = new Node();
+		tmp.set_c(c);
+		if (cur == front)
+		{
+			front = tmp;
+			cur.set_prev(tmp);
+			tmp.set_next(cur);
+			cur = cur.go_prev();
+		}
+		else
+		{
+			Node prev = cur.go_prev();
+			prev.set_next(tmp);
+			tmp.set_prev(prev);
+			tmp.set_next(cur);
+			cur.set_prev(tmp);
+			cur = cur.go_prev();
+		}
+		size++;
+	}
+
+	public void push_next(Shape c)//добавляет элемент следующим
+	{
+		if (size == 0)
+		{
+			push_back(c);
+			return;
+		}
+
+		Node tmp = new Node();
+		tmp.set_c(c);
+		if (cur == back)
+		{
+			cur.set_next(tmp);
+			back = tmp;
+			tmp.set_prev(cur);
+			cur = cur.go_next();
+		}
+		else
+		{
+			Node next = cur.go_next();
+			cur.set_next(tmp);
+			tmp.set_prev(cur);
+			tmp.set_next(next);
+			next.set_prev(tmp);
+			cur = cur.go_next();
+		}
+		size++;
+
+	}
+
+	public void change_cur()//вызывает метом изменения всех атрибутов объекта
+	{
+		//cur->get_p()->change_atr();
+	}
+
+	public void go_next()//перемещает указатель на следующий
+	{
+
+		if (cur == back)
+			cur = front;
+		else
+			cur = cur.go_next();
+	}
+
+	public void go_prev()//перемещает указатель на предыдущий
+	{
+
+
+		if (cur == front)
+		{
+			cur = back;
+		}
+		else cur = cur.go_prev();
+	}
+	public void print2(Graphics g)
+    {
+		g.Clear(Color.White);
+		if (size > 0)
+		{
+			Node tmp = front;
+			while (tmp != back)
+			{
+				if (tmp == cur)
+				{
+					tmp.get_c().DrawRec(g);
+				}
+				tmp.get_c().Draw(g);
+
+				tmp = tmp.go_next();
+
+			}
+			if (tmp == cur)
+			{
+				tmp.get_c().DrawRec(g);
+			}
+				tmp.get_c().Draw(g);
+			
+		}
+	}
+	
+
+	public int find(Shape c)
+	{
+		if (size > 0)
+		{
+			Node tmp = front;
+			int i = 0;
+			while (tmp != back)
+			{
+				if (tmp.get_c().Find(c))
+				{
+					cur = tmp;
+					return i;
+
+				}
+				i++;
+				tmp = tmp.go_next();
+
+			}
+			if (tmp.get_c().Find(c))
+			{
+				cur = tmp;
+				return i;
+
+			}
+		}
+		return -1;
+
+	}
+
+	public bool pick(Shape c)
+	{
+		if (size > 0)
+		{
+			Node tmp = front;
+			while (tmp != back)
+			{
+				if (tmp.get_c() == c)
+				{
+					tmp.change_pick();
+					return true;
+				}
+
+				tmp = tmp.go_next();
+			}
+			if (tmp.get_c() == c)
+			{
+				tmp.change_pick();
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	public void delete_pick()
+	{
+		if (size > 0)
+		{
+			Node tmp = front;
+			bool del = true;
+			while (tmp != back)
+			{
+				if (size > 1)
+				{
+					if (tmp.get_pick())
+					{
+						del = false;
+						if (tmp == front)
+						{
+							front = tmp.go_next();
+							if (tmp == cur)
+							{
+								cur = cur.go_next();
+								cur.set_prev(null);
+							}
+
+						}
+						else
+						{
+							if (tmp == cur)
+								cur = cur.go_prev();
+							Node next = tmp.go_next();
+							Node prev = tmp.go_prev();
+							next.set_prev(prev);
+							prev.set_next(next);
+						}
+						if (front == tmp) tmp.go_next().set_prev(null);
+						Node tmp1 = tmp;
+						tmp = tmp.go_next();
+						//delete tmp1;
+						tmp = null;
+						size--;
+					}
+					else
+						tmp = tmp.go_next();
+				}
+				else
+				{
+					if (tmp.get_pick())
+					{
+						del = false;
+						Node tmp1 = tmp;
+						//delete tmp1;
+						tmp1 = null;
+						size--;
+						front = null;
+						back = null;
+						cur = null;
+						return;
+					}
+				}
+			}
+			if (tmp == back)
+			{
+				if (tmp.get_pick())
+				{
+					if (size > 1)
+					{
+						back = tmp.go_prev();
+						tmp.go_prev().set_next(null);
+						if (cur == tmp) cur = cur.go_prev();
+						Node tmp1 = tmp;
+						//delete tmp1;
+						tmp1 = null;
+						size--;
+						return;
+					}
+
+					else
+					{
+						Node tmp1 = tmp;
+						//delete tmp1;
+						tmp1 = null;
+						size--;
+						front = null;
+						back = null;
+						cur = null;
+						return;
+					}
+				}
+			}
+			if (del)
+			{
+				pop_cur();
+			}
+
+		}
+	}
+
+
+	~Repository()//деструктор
+	{
+		Node cur = back;
+		while (cur != front)
+		{
+			Node tmp = cur;
+			cur = tmp.go_prev();
+			//delete tmp;
+			tmp = null;
+		}
+		//delete cur;
+		cur = null;
+
+	}
+
+
+
+
+
+
+}
